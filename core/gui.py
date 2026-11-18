@@ -69,8 +69,6 @@ class App(tk.Tk):
         if p:
             if engine.kind_of(p) is None:
                 return messagebox.showerror("오류", "PPT/HTML 파일이 아닙니다.")
-            if self.to.get() == "ppt" and engine.kind_of(p) != "ppt":
-                return messagebox.showwarning("안내", "PPT로 출력하려면 기준 파일도 PPT여야 합니다.")
             self.base.set(p)
 
     def add_targets(self):

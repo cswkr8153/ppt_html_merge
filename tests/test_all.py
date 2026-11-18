@@ -58,9 +58,24 @@ class T(unittest.TestCase):
         out, r = self.run_pair("html", "base.pptx", "target.html")
         self.assertIn("aspect-ratio", open(out, encoding="utf-8").read())
 
-    def test_html_base_ppt_rejected(self):
-        with self.assertRaises(ValueError):
-            engine.run("ppt", self.j("base.html"), [self.j("target.pptx")], self.d + "/x", log=lambda s: None)
+    def test_html_base_ppt(self):
+        import zipfile as zf
+        for tgt in ("target.pptx", "target.html"):
+            out, r = self.run_pair("ppt", "base.html", tgt)
+            pp = __import__("pptx").Presentation(out)   # 유효성 (테스트 한정)
+            self.assertGreaterEqual(len(pp.slides), 2)
+            th = zf.ZipFile(out).read("ppt/theme/theme1.xml").decode()
+            self.assertIn("Malgun Gothic", th)           # base.html 의 font-family
+            self.assertIn("CC0000", th.upper())          # h2 color #c00 -> 제목색
+            self.assertTrue(any("PPT 템플릿 생성" in n for n in r["notes"]))
+
+    def test_css_theme_fallback(self):
+        from core.pptx_template import extract_css_theme
+        th, warn = extract_css_theme("<html><body>x</body></html>")
+        self.assertEqual(th["bg"], "FFFFFF")
+        self.assertTrue(warn)
+        th, _ = extract_css_theme("<style>body{font-family:'Noto Sans KR',sans-serif;color:rgb(1,2,3);background:#fff}</style>")
+        self.assertEqual((th["font"], th["fg"], th["bg"]), ("Noto Sans KR", "010203", "FFFFFF"))
 
     def test_encrypted_non_windows(self):
         f = self.j("enc.pptx")

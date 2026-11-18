@@ -7,6 +7,7 @@ import zipfile
 from . import com_pptx
 from .html_io import decode_bytes, html_to_model, parse_html, read_html_file
 from .pptx_io import read_pptx
+from .pptx_template import template_from_html
 from .unify_html import build_html_from_html, build_html_from_model, template_from_pptx
 from .unify_ppt import build_pptx
 
@@ -36,14 +37,13 @@ def _unique(path):
 def run(to, base, targets, outdir, log=print):
     """to: 'ppt'|'html'. 반환: [{'file','out','ok','notes':[...]}]"""
     results = []
+    base_notes = []
     os.makedirs(outdir, exist_ok=True)
     tmp = tempfile.mkdtemp(prefix="fu_")
     try:
         bk = kind_of(base)
         if bk is None:
             raise ValueError("기준 파일 형식을 알 수 없습니다: " + base)
-        if to == "ppt" and bk != "ppt":
-            raise ValueError("PPT로 출력하려면 기준 파일도 PPT여야 합니다. (HTML 기준 → PPT 출력은 아직 미지원)")
         # 기준 준비
         base_plain = None
         base_html_text = None
@@ -54,9 +54,15 @@ def run(to, base, targets, outdir, log=print):
         else:
             with open(base, "rb") as f:
                 base_html_text = decode_bytes(f.read())
+            base_notes = []
+            if to == "ppt":
+                base_plain = os.path.join(tmp, "base_from_html.pptx")
+                th, warn = template_from_html(base_html_text, base_plain, os.path.dirname(os.path.abspath(base)))
+                base_notes = ["HTML 기준 → CSS에서 PPT 템플릿 생성 (폰트 %s, 글자색 #%s, 배경 #%s, 제목색 #%s, 16:9)"
+                              % (th["font"], th["fg"], th["bg"], th["title"])] + warn
 
         for t in targets:
-            r = {"file": os.path.basename(t), "out": None, "ok": False, "notes": []}
+            r = {"file": os.path.basename(t), "out": None, "ok": False, "notes": list(base_notes)}
             results.append(r)
             try:
                 tk = kind_of(t)
